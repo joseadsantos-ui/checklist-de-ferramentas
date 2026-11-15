@@ -57,3 +57,26 @@ firebase deploy
 Coleção `conferencias`, um documento por conferência finalizada:
 `caixa`, `data`, `resp`, `itens[{nome,qtd,s,f,l}]`, `falta`, `completa`, `lote`, `criadoEm`.
 O rascunho em andamento fica só no aparelho (por caixa) até você tocar em **Finalizar e salvar**.
+
+## Atualização: regras com a lista de ferramentas editável
+A aba **Lista** grava o documento `config/catalogo`. Substitua as regras do Firestore por estas e **Publique**:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /conferencias/{id} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['caixa','data','resp','itens'])
+        && request.resource.data.resp is string
+        && request.resource.data.resp.size() < 80;
+      allow update, delete: if false;
+    }
+    match /config/{doc} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+Atenção: com login anônimo, qualquer pessoa com o endereço do site pode alterar a lista. Para restringir, use login por e-mail e senha.

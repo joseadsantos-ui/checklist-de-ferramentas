@@ -1,7 +1,8 @@
 import {firebaseConfig} from "./firebase-config.js";
-const FB="https://www.gstatic.com/firebasejs/10.14.1/", K="chk-v3-";
-// [nome, qtd, caixaInicial, caixaFinal]  (sem faixa = todas as caixas)
-const CAT=[["Alicate de corte diagonal",2],["Alicate universal",2],["Alicate de bico",2],["Alicate desencapador de terminais",1],["Alicate crimpador de terminais – ilhós",1],["Alicate crimpador friso terminal",1],["Serrinha com arco de serra",1],["Esquadro",1],["Alicate rebitador",1],["Martelo",1],["Punção",1],["Chave de fenda ¼”",2],["Chave de fenda 3/16”",3],["Chave de fenda 1/8”",2],["Chave Philips 3/16”",3],["Chave Philips 1/4”",1,1,7],["Chave Philips 1/8”",3],["Trena",1,1,6]];
+const FB="https://www.gstatic.com/firebasejs/10.14.1/", K="chk-v3-", MAXCX=12;
+// Lista padrão: n=nome, q=quantidade, a=da caixa, b=até a caixa (vazio = todas as caixas 1 a 12)
+const P=(n,q,a,b)=>({n,q,a:a||null,b:b||null});
+const PADRAO=[P("Alicate de corte diagonal",2),P("Alicate universal",2),P("Alicate de bico",2),P("Alicate desencapador de terminais",1),P("Alicate crimpador de terminais – ilhós",1),P("Alicate crimpador friso terminal",1),P("Serrinha com arco de serra",1),P("Esquadro",1),P("Alicate rebitador",1),P("Martelo",1),P("Punção",1),P("Chave de fenda ¼”",2),P("Chave de fenda 3/16”",3),P("Chave de fenda 1/8”",2),P("Chave Philips 3/16”",3),P("Chave Philips 1/4”",1,1,7),P("Chave Philips 1/8”",3),P("Trena",1,1,6)];
 const $=id=>document.getElementById(id), p=n=>n<10?"0"+n:""+n;
 const hoje=()=>{const d=new Date();return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -9,7 +10,7 @@ const fmt=d=>d?d.split("-").reverse().join("/"):"—";
 const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const ld=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch(e){return d}};
 const novo=()=>({data:hoje(),st:{},ex:[]});
-let cx=ld(K+"cx",1), resp=ld(K+"resp",""), D=ld(K+"d"+cx,null)||novo(), L=[], HA=[], fb=null;
+let CAT=ld(K+"cat",null)||PADRAO.map(x=>({...x})), ED=[], HIST=[], LAST={}, cx=Math.min(MAXCX,Math.max(1,+ld(K+"cx",1)||1)), resp=ld(K+"resp",""), D=ld(K+"d"+cx,null)||novo(), L=[], HA=[], fb=null;
 const save=()=>{sv(K+"d"+cx,D);sv(K+"resp",resp);sv(K+"cx",cx)};
 function toast(t){const m=$("msg");m.textContent=t;m.className="show";setTimeout(()=>m.className="",2200)}
 
@@ -24,12 +25,14 @@ async function initFB(){
   const db=fs.initializeFirestore(a,{localCache:fs.persistentLocalCache({tabManager:fs.persistentMultipleTabManager()})});
   await au.signInAnonymously(au.getAuth(a));
   fb={db,fs};status("online","Firebase conectado");
- }catch(e){console.error(e);status("erro","Erro no Firebase – salvando só neste aparelho")}
+  fs.onSnapshot(fs.doc(db,"config","catalogo"),sn=>{if(sn.exists()&&Array.isArray(sn.data().itens)){CAT=sn.data().itens;sv(K+"cat",CAT);if($("lista").hidden)render()}},e=>console.error(e));
+  loadHist();
+ }catch(e){console.error(e);status("erro","Erro: "+(e.code||e.message||"desconhecido"));$("st").title="Salvando só neste aparelho"}
 }
 
 /* ---------- Dados da caixa ---------- */
 function itens(){const n=+cx;
- return CAT.filter(c=>!c[2]||(n>=c[2]&&n<=c[3])).map(c=>({nome:c[0],qtd:c[1],r:D.st[c[0]]||(D.st[c[0]]={s:null,f:0})}))
+ return CAT.filter(c=>(!c.a||n>=c.a)&&(!c.b||n<=c.b)).map(c=>({nome:c.n,qtd:c.q,r:D.st[c.n]||(D.st[c.n]={s:null,f:0})}))
   .concat(D.ex.map((e,i)=>({nome:e.nome,qtd:e.qtd,r:e,x:i})))}
 const on=it=>it.nome.trim()!=="";
 function stats(){const c={tot:0,sim:0,nao:0,pend:0,falta:0,semq:0,lote:0};
@@ -52,7 +55,7 @@ function upd(tr,it){const r=it.r,a=on(it);
  const f=tr.querySelector("[data-f]");f.disabled=r.s!=="nao";f.value=r.s==="nao"&&r.f?r.f:"";sum()}
 function render(){L=itens();$("rows").innerHTML=L.map(row).join("");
  [...$("rows").children].forEach((tr,i)=>upd(tr,L[i]));
- $("caixa").value=cx;$("data").value=D.data;$("resp").value=resp;sum()}
+ renderCx();$("data").value=D.data;$("resp").value=resp;sum()}
 $("rows").onclick=e=>{const t=e.target.closest("button");if(!t)return;const tr=t.closest("tr"),it=L[tr.dataset.i];
  if(t.dataset.rm!==undefined){D.ex.splice(it.x,1);save();render();return}
  const r=it.r;r.s=r.s===t.dataset.s?null:t.dataset.s;r.l=0;if(r.s!=="nao")r.f=0;save();upd(tr,it);
@@ -64,7 +67,9 @@ $("rows").oninput=e=>{const t=e.target,tr=t.closest("tr"),it=L[tr.dataset.i];
  save()};
 
 /* ---------- Cabeçalho ---------- */
-$("caixa").onchange=function(){save();cx=Math.max(1,parseInt(this.value,10)||1);sv(K+"cx",cx);D=ld(K+"d"+cx,null)||novo();render()};
+function renderCx(){let h="";for(let n=1;n<=MAXCX;n++){const l=LAST[n],k=!l?"":(l.completa?"ok":"bad");
+ h+=`<button class="cxb ${k} ${n===cx?"on":""}" data-n="${n}" aria-label="Caixa ${n}">${p(n)}${l&&!l.completa?`<small>${l.falta}</small>`:""}</button>`}$("cxs").innerHTML=h}
+$("cxs").onclick=e=>{const b=e.target.closest("[data-n]");if(!b)return;save();cx=+b.dataset.n;sv(K+"cx",cx);D=ld(K+"d"+cx,null)||novo();render()};
 $("data").oninput=function(){D.data=this.value;save()};
 $("resp").oninput=function(){resp=this.value;save()};
 $("add").onclick=()=>{D.ex.push({nome:"",qtd:1,s:null,f:0});save();render();const i=$("rows").querySelectorAll("[data-x]");i[i.length-1].focus()};
@@ -93,16 +98,47 @@ $("fin").onclick=()=>{const c=stats();
  const doc={...draft(),falta:c.falta,completa:!c.nao,lote:c.lote};
  if(fb)fb.fs.addDoc(fb.fs.collection(fb.db,"conferencias"),{...doc,criadoEm:fb.fs.serverTimestamp()}).catch(e=>{console.error(e);toast("Falha ao enviar ao Firebase")});
  else{const h=ld(K+"hist",[]);h.unshift({...doc,criadoEm:Date.now()});sv(K+"hist",h.slice(0,200))}
- D=novo();save();render();toast(fb?(navigator.onLine?"Conferência salva":"Salva; envia quando houver internet"):"Salva neste aparelho")};
-async function hist(){let a=[];
- if(fb){try{const q=fb.fs.query(fb.fs.collection(fb.db,"conferencias"),fb.fs.orderBy("criadoEm","desc"),fb.fs.limit(60));
-  a=(await fb.fs.getDocs(q)).docs.map(d=>d.data())}catch(e){console.error(e);toast("Não foi possível ler o histórico")}}
+ HIST.unshift({...doc,criadoEm:Date.now()});calcLast();D=novo();save();render();toast(fb?(navigator.onLine?"Conferência salva":"Salva; envia quando houver internet"):"Salva neste aparelho")};
+function calcLast(){LAST={};HIST.forEach(c=>{if(!LAST[c.caixa])LAST[c.caixa]=c});renderCx()}
+async function loadHist(){let a=[];
+ if(fb){try{const q=fb.fs.query(fb.fs.collection(fb.db,"conferencias"),fb.fs.orderBy("criadoEm","desc"),fb.fs.limit(300));
+  a=(await fb.fs.getDocs(q)).docs.map(d=>d.data())}catch(e){console.error(e);toast("Não foi possível ler o histórico");return}}
  else a=ld(K+"hist",[]);
- const f=$("fc").value;if(f)a=a.filter(x=>x.caixa==f);HA=a;
+ HIST=a;calcLast()}
+function drawHist(){let a=HIST;const f=$("fc").value;if(f)a=a.filter(x=>x.caixa==f);window.HA=a;
  $("hl").innerHTML=a.length?a.map((c,i)=>`<details><summary><b>Caixa ${p(c.caixa)}</b> · ${fmt(c.data)} · ${esc(c.resp)} · <span class="${c.completa?"ok":"bad"}">${c.completa?"completa":c.falta+" un. em falta"}</span></summary><pre>${esc(report(c))}</pre><button data-c="${i}">Copiar</button></details>`).join(""):'<p class="nota">Nenhuma conferência salva ainda.</p>'}
-$("hl").onclick=e=>{const b=e.target.closest("[data-c]");if(b)copiar(report(HA[b.dataset.c]))};
-$("fc").oninput=hist;
-function aba(h){$("conf").hidden=h;$("hist").hidden=!h;$("t1").classList.toggle("on",!h);$("t2").classList.toggle("on",h);if(h)hist()}
-$("t1").onclick=()=>aba(false);$("t2").onclick=()=>aba(true);
+$("hl").onclick=e=>{const b=e.target.closest("[data-c]");if(b)copiar(report(window.HA[b.dataset.c]))};
+$("fc").oninput=drawHist;
+function faltando(){const tot={};let h="";
+ for(let n=1;n<=MAXCX;n++){const l=LAST[n];
+  if(!l){h+=`<details><summary><b>Caixa ${p(n)}</b> · <span class="mut">sem conferência</span></summary></details>`;continue}
+  const m=l.itens.filter(i=>i.s==="nao");m.forEach(i=>tot[i.nome]=(tot[i.nome]||0)+(i.f||0));
+  h+=`<details ${m.length?"open":""}><summary><b>Caixa ${p(n)}</b> · ${fmt(l.data)} · ${esc(l.resp)} · <span class="${m.length?"bad":"ok"}">${m.length?l.falta+" un. em falta":"completa"}</span></summary>${m.length?"<ul>"+m.map(i=>`<li>${esc(i.nome)}: faltam <b>${i.f||"?"}</b> de ${i.qtd}</li>`).join("")+"</ul>":""}</details>`}
+ const t=Object.entries(tot);
+ $("fl").innerHTML=(t.length?`<div class="tot"><b>Total geral em falta</b><ul>${t.map(([k,v])=>`<li>${esc(k)}: ${v}</li>`).join("")}</ul></div>`:"")+h}
+/* ---------- Editor da lista ---------- */
+function edRender(){$("ed").innerHTML=ED.map((c,i)=>`<div class="er" data-i="${i}"><input class="cel" data-k="n" value="${esc(c.n)}" placeholder="Ferramenta" aria-label="Nome"><input class="cel q" type="number" min="1" data-k="q" value="${c.q}" aria-label="Quantidade"><input class="cel q" type="number" min="1" max="${MAXCX}" data-k="a" value="${c.a||""}" placeholder="todas" aria-label="Da caixa"><input class="cel q" type="number" min="1" max="${MAXCX}" data-k="b" value="${c.b||""}" placeholder="todas" aria-label="Até a caixa"><button data-up title="Inserir linha nova acima">＋↑</button><button data-del title="Remover">×</button></div>`).join("")}
+const foco=i=>{const e=$("ed").querySelectorAll('[data-k="n"]')[i];if(e)e.focus()};
+$("ed").oninput=e=>{const t=e.target,i=t.closest(".er").dataset.i,k=t.dataset.k;if(!k)return;
+ ED[i][k]=k==="n"?t.value:(parseInt(t.value,10)||(k==="q"?1:null))};
+$("ed").onclick=e=>{const t=e.target.closest("button");if(!t)return;const i=+t.closest(".er").dataset.i;
+ if(t.dataset.up!==undefined){ED.splice(i,0,{n:"",q:1,a:null,b:null});edRender();foco(i)}
+ else if(t.dataset.del!==undefined&&(!ED[i].n.trim()||confirm("Remover \""+ED[i].n+"\" da lista?"))){ED.splice(i,1);edRender()}};
+$("addfim").onclick=()=>{ED.push({n:"",q:1,a:null,b:null});edRender();foco(ED.length-1)};
+$("padrao").onclick=()=>{if(confirm("Voltar para a lista padrão? Só vale depois de tocar em Salvar lista.")){ED=PADRAO.map(x=>({...x}));edRender()}};
+$("salvarlista").onclick=()=>{const L2=ED.filter(c=>c.n.trim()).map(c=>({n:c.n.trim(),q:Math.max(1,c.q||1),a:c.a||null,b:c.b||null})),nm=new Set(L2.map(c=>c.n.toLowerCase()));
+ if(!L2.length)return toast("A lista não pode ficar vazia");
+ if(nm.size!==L2.length)return toast("Há nomes repetidos na lista");
+ if(L2.some(c=>(c.a&&(c.a>MAXCX||c.a<1))||(c.b&&(c.b>MAXCX||c.b<1))||(c.a&&c.b&&c.a>c.b)))return toast("Confira 'Da cx' e 'Até cx' (1 a "+MAXCX+", início ≤ fim)");
+ CAT=L2;sv(K+"cat",CAT);
+ if(fb)fb.fs.setDoc(fb.fs.doc(fb.db,"config","catalogo"),{itens:CAT,atualizadoEm:fb.fs.serverTimestamp()}).catch(e=>{console.error(e);toast("Falha ao enviar a lista ao Firebase")});
+ render();toast(fb?"Lista salva":"Lista salva neste aparelho")};
+/* ---------- Abas ---------- */
+function aba(t){["conf","falt","lista","hist"].forEach(k=>$(k).hidden=k!==t);
+ document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+ if(t==="lista"){ED=CAT.map(x=>({...x}));edRender()}
+ if(t==="falt"){faltando();loadHist().then(faltando)}
+ if(t==="hist"){drawHist();loadHist().then(drawHist)}}
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>aba(b.dataset.t));
 
-render();initFB();
+render();loadHist();initFB();

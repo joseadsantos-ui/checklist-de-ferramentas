@@ -12,11 +12,15 @@
   <div><h1>Check list</h1><p class="sub">Caixa de ferramentas – Laboratório Instalações Industriais</p></div>
   <span id="st" class="badge">…</span>
  </header>
- <nav class="tabs"><button id="t1" class="on">Conferência</button><button id="t2">Histórico</button></nav>
+ <nav class="tabs">
+  <button data-t="conf" class="on">Conferência</button><button data-t="falt">Faltando</button><button data-t="lista">Lista</button><button data-t="hist">Histórico</button>
+ </nav>
 
  <section id="conf">
-  <div class="meta">
-   <div><label for="caixa">Caixa nº</label><input id="caixa" type="number" min="1" inputmode="numeric"></div>
+  <label>Caixa (toque para trocar)</label>
+  <div id="cxs" class="cxs"></div>
+  <p class="nota">Verde: última conferência completa. Vermelho: com falta (o número é a quantidade de unidades). Cinza: ainda sem conferência.</p>
+  <div class="meta2">
    <div><label for="data">Data</label><input id="data" type="date"></div>
    <div><label for="resp">Responsável</label><input id="resp" placeholder="Nome" autocomplete="name"></div>
   </div>
@@ -25,7 +29,6 @@
    <thead><tr><th class="n">Nº</th><th>Ferramenta</th><th class="c">Qtd.</th><th class="c">Conferido</th><th class="c">Falta</th></tr></thead>
    <tbody id="rows"></tbody>
   </table></div>
-  <p class="nota">Sim: todas as unidades estão na caixa. Não: falta alguma; informe quantas. Ferramentas que não pertencem a esta caixa não aparecem.</p>
   <div class="bar">
    <button id="add">+ Ferramenta extra</button>
    <button id="allsim">Marcar restantes como Sim</button>
@@ -36,8 +39,24 @@
   </div>
  </section>
 
+ <section id="falt" hidden>
+  <p class="nota">Mostra o que faltou na última conferência de cada caixa.</p>
+  <div id="fl"></div>
+ </section>
+
+ <section id="lista" hidden>
+  <p class="nota">Edite a lista de ferramentas. "Da caixa" e "Até" limitam em quais caixas a ferramenta aparece (vazio = todas, de 1 a 12). Use <b>＋↑</b> para inserir uma linha nova acima de outra, ou <b>Adicionar no fim</b>.</p>
+  <div class="er eh"><span>Ferramenta</span><span>Qtd.</span><span>Da cx</span><span>Até cx</span><span></span><span></span></div>
+  <div id="ed"></div>
+  <div class="bar">
+   <button id="addfim">+ Adicionar no fim</button>
+   <button id="padrao">Restaurar lista padrão</button>
+   <button class="pri" id="salvarlista">Salvar lista</button>
+  </div>
+ </section>
+
  <section id="hist" hidden>
-  <div class="meta"><div><label for="fc">Filtrar caixa nº</label><input id="fc" type="number" min="1" inputmode="numeric" placeholder="Todas"></div></div>
+  <div class="meta2"><div><label for="fc">Filtrar caixa nº</label><input id="fc" type="number" min="1" max="12" inputmode="numeric" placeholder="Todas"></div></div>
   <div id="hl"></div>
  </section>
 </div>
