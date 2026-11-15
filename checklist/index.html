@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Check list – Caixa de ferramentas</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+ <header>
+  <div><h1>Check list</h1><p class="sub">Caixa de ferramentas – Laboratório Instalações Industriais</p></div>
+  <span id="st" class="badge">…</span>
+ </header>
+ <nav class="tabs"><button id="t1" class="on">Conferência</button><button id="t2">Histórico</button></nav>
+
+ <section id="conf">
+  <div class="meta">
+   <div><label for="caixa">Caixa nº</label><input id="caixa" type="number" min="1" inputmode="numeric"></div>
+   <div><label for="data">Data</label><input id="data" type="date"></div>
+   <div><label for="resp">Responsável</label><input id="resp" placeholder="Nome" autocomplete="name"></div>
+  </div>
+  <div class="sum" id="sum"></div>
+  <div class="tw"><table>
+   <thead><tr><th class="n">Nº</th><th>Ferramenta</th><th class="c">Qtd.</th><th class="c">Conferido</th><th class="c">Falta</th></tr></thead>
+   <tbody id="rows"></tbody>
+  </table></div>
+  <p class="nota">Sim: todas as unidades estão na caixa. Não: falta alguma; informe quantas. Ferramentas que não pertencem a esta caixa não aparecem.</p>
+  <div class="bar">
+   <button id="add">+ Ferramenta extra</button>
+   <button id="allsim">Marcar restantes como Sim</button>
+   <button id="copy">Copiar relatório</button>
+   <button id="print">Imprimir</button>
+   <button id="clear">Descartar</button>
+   <button class="pri" id="fin">Finalizar e salvar</button>
+  </div>
+ </section>
+
+ <section id="hist" hidden>
+  <div class="meta"><div><label for="fc">Filtrar caixa nº</label><input id="fc" type="number" min="1" inputmode="numeric" placeholder="Todas"></div></div>
+  <div id="hl"></div>
+ </section>
+</div>
+<div id="msg" role="status"></div>
+<script type="module" src="script.js"></script>
+</body>
+</html>
